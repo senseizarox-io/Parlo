@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Parlo — Translate Instantly, Anywhere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root{
+      --bg-1:#0b1020;
+      --bg-2:#0f1224;
+      --accent-1:#7c3aed; /* purple */
+      --accent-2:#06b6d4; /* cyan */
+      --glass: rgba(255,255,255,0.04);
+      --card: rgba(255,255,255,0.03);
+      --muted: rgba(255,255,255,0.6);
+      --radius:14px;
+      color-scheme: dark;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;
+      background: linear-gradient(180deg,var(--bg-1),var(--bg-2));
+      color:#e6eef8;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      overflow-x:hidden;
+    }
+    /* Particle canvas sits behind everything */
+    #bg-canvas{position:fixed;inset:0;z-index:0}
+
+    .container{position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:40px 24px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 6px 20px rgba(12,8,30,0.6)}
+    .logo span{font-size:20px}
+    nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-weight:500}
+    nav a:hover{color:#fff}
+
+    /* Hero */
+    .hero{display:grid;grid-template-columns:1fr 420px;gap:32px;align-items:center;padding:48px 0}
+    .hero-left{padding:28px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
+    h1{font-size:40px;margin:0 0 12px;line-height:1.04}
+    .subtitle{color:var(--muted);font-size:16px;margin-bottom:20px}
+    .cta-row{display:flex;gap:12px;align-items:center}
+    .btn{appearance:none;border:0;padding:14px 18px;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .16s ease, box-shadow .16s ease}
+    .btn:active{transform:translateY(1px)}
+    .btn-primary{background:linear-gradient(90deg,var(--accent-1),var(--accent-2));box-shadow:0 8px 30px rgba(124,58,237,0.14);color:#fff}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .cta-note{font-size:13px;color:var(--muted);margin-top:10px}
+
+    /* Fake installer preview on the right */
+    .installer-preview{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.015));padding:20px;border-radius:16px;box-shadow:inset 0 -40px 80px rgba(8,6,22,0.35)}
+    .screen{height:320px;border-radius:12px;background:linear-gradient(180deg,rgba(0,0,0,0.35),rgba(255,255,255,0.02));display:flex;flex-direction:column;padding:16px}
+    .screen-top{display:flex;align-items:center;gap:12px}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot.r{background:#ff5b5b}
+    .dot.y{background:#f5d24a}
+    .dot.g{background:#4cd964}
+    .screen-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .screen-content p{color:var(--muted);margin:6px 0}
+
+    /* About */
+    .about{display:flex;flex-direction:column;gap:18px;padding:36px 0}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .card{background:var(--card);padding:18px;border-radius:12px;backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(2,6,23,0.6);transition:transform .18s ease,box-shadow .18s ease}
+    .card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(2,10,30,0.6)}
+    .card h3{margin:0 0 8px}
+    .feature-ill{height:90px;border-radius:10px;background:linear-gradient(135deg,rgba(124,58,237,0.14),rgba(6,182,212,0.06));display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-weight:600;color:var(--accent-2)}
+
+    /* Download */
+    .downloads{display:flex;gap:12px;flex-wrap:wrap}
+    .download-btn{flex:1;min-width:160px}
+
+    footer{margin-top:40px;padding:18px 0;border-top:1px solid rgba(255,255,255,0.03);display:flex;justify-content:space-between;align-items:center}
+    footer .links{display:flex;gap:14px}
+    footer a{color:var(--muted);text-decoration:none}
+
+    /* Installer modal */
+    .modal-backdrop{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.6),rgba(3,6,12,0.6));display:flex;align-items:center;justify-content:center;z-index:60;backdrop-filter:blur(6px)}
+    .installer{width:min(680px,92%);background:#071028;border-radius:14px;padding:22px;box-shadow:0 30px 90px rgba(2,6,23,0.8);position:relative;overflow:hidden}
+    .installer .title{display:flex;align-items:center;gap:12px}
+    .installer .progress{height:14px;background:rgba(255,255,255,0.04);border-radius:10px;margin-top:18px;overflow:hidden}
+    .installer .progress > i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--accent-2),var(--accent-1));transition:width 520ms cubic-bezier(.2,.9,.25,1)}
+    .installer .log{margin-top:14px;background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;font-size:13px;color:var(--muted);max-height:160px;overflow:auto}
+    .installer .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+
+    /* Mock app after launch */
+    .mock-app{padding:20px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));display:flex;flex-direction:column;gap:12px}
+
+    /* Responsive */
+    @media (max-width:880px){
+      .hero{grid-template-columns:1fr;}
+      .installer-preview{order:2}
+      .hero-left{order:1}
+      .features{grid-template-columns:1fr}
+      nav a{display:none}
+    }
+
+    /* small micro animations */
+    .glow{animation:glow 3s infinite}
+    @keyframes glow{0%{filter:drop-shadow(0 0 0 rgba(124,58,237,0))}50%{filter:drop-shadow(0 10px 30px rgba(124,58,237,0.08))}100%{filter:drop-shadow(0 0 0 rgba(124,58,237,0))}}
+
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo"><span>P</span></div>
+        <div>
+          <div style="font-weight:700">Parlo</div>
+          <div style="font-size:12px;color:var(--muted)">AI Translation</div>
+        </div>
+      </div>
+      <nav>
+        <a href="#home">Home</a>
+        <a href="#about">About</a>
+        <a href="#download">Download</a>
+        <a href="#support">Support</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="home" class="hero">
+        <div class="hero-left">
+          <h1>Parlo — Translate Instantly, Anywhere.</h1>
+          <p class="subtitle">Your ultimate AI-powered translation companion.</p>
+          <div class="cta-row">
+            <button id="installBtn" class="btn btn-primary">Install Parlo</button>
+            <button class="btn btn-ghost" id="tourBtn">Take a Tour</button>
+          </div>
+          <div class="cta-note">Works with speech, camera, and text — online & offline. Over 100 languages supported.</div>
+        </div>
+
+        <div class="installer-preview">
+          <div class="screen" aria-hidden="true">
+            <div class="screen-top"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+            <div class="screen-content">
+              <div style="font-size:18px;font-weight:600">Parlo Installer</div>
+              <p>Simulated installer preview. Click "Install Parlo" to run the demo.</p>
+              <div style="margin-top:12px;width:80%"><div style="height:12px;background:rgba(255,255,255,0.03);border-radius:8px;overflow:hidden"><div style="width:40%;height:100%;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));border-radius:8px"></div></div></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding-top:14px;color:var(--muted);font-size:13px">
+            <div>Version 1.0 (Demo)</div>
+            <div>Size: 72 MB</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="about" class="about">
+        <h2 style="margin:0 0 6px">About Parlo</h2>
+        <p style="margin:0;color:var(--muted)">Parlo helps you translate speech, text, and camera input instantly in over 100 languages.</p>
+
+        <div class="features" style="margin-top:6px">
+          <div class="card">
+            <div class="feature-ill">🎙️ Voice Translation</div>
+            <h3>Voice Translation</h3>
+            <p style="color:var(--muted);margin:0">Speak and get instant translations — fast, natural, and localized.</p>
+          </div>
+
+          <div class="card">
+            <div class="feature-ill">📶 Offline</div>
+            <h3>Offline Mode</h3>
+            <p style="color:var(--muted);margin:0">Download language packs and translate anywhere — no internet required.</p>
+          </div>
+
+          <div class="card">
+            <div class="feature-ill">🧠 Context</div>
+            <h3>Smart Context</h3>
+            <p style="color:var(--muted);margin:0">AI understands tone and context for more accurate translations.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" style="padding:26px 0">
+        <h2 style="margin:0 0 10px">Download</h2>
+        <p style="color:var(--muted);margin-top:0">Choose your platform — these are demo buttons that behave like real installers.</p>
+        <div class="downloads">
+          <button class="btn btn-primary download-btn" data-os="Windows">Download for Windows</button>
+          <button class="btn btn-primary download-btn" data-os="macOS">Download for macOS</button>
+          <button class="btn btn-primary download-btn" data-os="Android">Download for Android</button>
+        </div>
+      </section>
+
+      <footer>
+        <div class="links">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Use</a>
+          <a href="#support">Support</a>
+          <a href="#contact">Contact</a>
+        </div>
+        <div style="color:var(--muted)">© 2025 Parlo Inc. All rights reserved.</div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Installer modal template -->
+  <div id="installerModal" class="modal-backdrop" style="display:none" aria-hidden="true">
+    <div class="installer" role="dialog" aria-modal="true" aria-label="Parlo Installer">
+      <div class="title"><div class="logo" style="width:44px;height:44px;border-radius:10px"><span>P</span></div>
+        <div>
+          <div style="font-weight:700">Parlo Setup</div>
+          <div style="font-size:12px;color:var(--muted)">Demo simulated installer</div>
+        </div>
+      </div>
+      <div class="progress" aria-hidden="true">
+        <i id="progressBar"></i>
+      </div>
+      <div class="log" id="installerLog" aria-live="polite"></div>
+      <div class="actions">
+        <button id="cancelInstall" class="btn btn-ghost">Cancel</button>
+        <button id="launchBtn" class="btn btn-primary" style="display:none">Launch App</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple audio via WebAudio API, we will trigger small notes -->
+
+  <script>
+    // Particle background
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let w=canvas.width=innerWidth, h=canvas.height=innerHeight;
+    const particles = [];
+    function rand(min,max){return Math.random()*(max-min)+min}
+    function create(){
+      for(let i=0;i<120;i++){
+        particles.push({x:rand(0,w),y:rand(0,h),r:rand(0.6,2.8),vx:rand(-0.2,0.2),vy:rand(-0.1,0.1),alpha:rand(0.05,0.6)})
+      }
+    }
+    function resize(){w=canvas.width=innerWidth;h=canvas.height=innerHeight}
+    addEventListener('resize',resize);
+    create();
+    function draw(){
+      ctx.clearRect(0,0,w,h);
+      // gradient overlay
+      const g=ctx.createLinearGradient(0,0,w,h);
+      g.addColorStop(0,'rgba(15,12,40,0.22)');
+      g.addColorStop(1,'rgba(8,10,28,0.6)');
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+      // subtle waves
+      ctx.beginPath();
+      ctx.moveTo(0,h*0.7);
+      for(let i=0;i<w;i+=20){
+        ctx.lineTo(i, h*0.7 + Math.sin((i+Date.now()*0.002)/60)*18);
+      }
+      ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();
+      ctx.fillStyle='rgba(124,58,237,0.03)';ctx.fill();
+
+      for(const p of particles){
+        p.x += p.vx; p.y += p.vy;
+        if(p.x<0) p.x=w; if(p.x>w) p.x=0; if(p.y<0) p.y=h; if(p.y>h) p.y=0;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(110,90,255,'+p.alpha+')'; ctx.fill();
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    // Installer logic
+    const installBtn = document.getElementById('installBtn');
+    const installerModal = document.getElementById('installerModal');
+    const installerLog = document.getElementById('installerLog');
+    const progressBar = document.getElementById('progressBar');
+    const cancelBtn = document.getElementById('cancelInstall');
+    const launchBtn = document.getElementById('launchBtn');
+
+    function playNote(freq, duration=0.08){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type='sine'; o.frequency.value = freq; g.gain.value = 0.02;
+        o.connect(g); g.connect(ctx.destination);
+        o.start(); g.gain.setValueAtTime(0.02, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        o.stop(ctx.currentTime + duration + 0.02);
+      }catch(e){/* audio not supported */}
+    }
+
+    function appendLog(txt){
+      const p = document.createElement('div'); p.textContent = txt; installerLog.appendChild(p);
+      installerLog.scrollTop = installerLog.scrollHeight;
+    }
+
+    let installAbort = false;
+    installBtn.addEventListener('click', ()=>{
+      openInstallerSequence();
+    });
+    cancelBtn.addEventListener('click', ()=>{
+      installAbort = true; installerModal.style.display='none';
+      installerLog.innerHTML=''; progressBar.style.width='0%';
+    });
+
+    function openInstallerSequence(){
+      installerModal.style.display='flex'; installerLog.innerHTML=''; progressBar.style.width='0%'; launchBtn.style.display='none'; installAbort=false;
+      const steps = [
+        {msg:'Preparing installation...', pct:12, note:440},
+        {msg:'Downloading language packs...', pct:45, note:520},
+        {msg:'Verifying packages...', pct:62, note:480},
+        {msg:'Installing core translation engine...', pct:88, note:640},
+        {msg:'Finalizing...', pct:97, note:720},
+        {msg:'Installation complete! Launch Parlo now.', pct:100, note:880}
+      ];
+      let i=0;
+      const runStep = ()=>{
+        if(installAbort) return;
+        const s = steps[i];
+        appendLog(s.msg);
+        playNote(s.note/1.5, 0.12);
+        // animate progress to s.pct over time
+        const start = parseFloat(progressBar.style.width) || 0;
+        const target = s.pct;
+        const dur = 900 + Math.random()*700;
+        const t0 = performance.now();
+        function frame(t){
+          const p = Math.min(1,(t - t0)/dur);
+          const val = start + (target - start)*p;
+          progressBar.style.width = val + '%';
+          if(p<1) requestAnimationFrame(frame);
+          else{
+            i++; if(i<steps.length) setTimeout(runStep, 500 + Math.random()*600);
+            else finishInstall();
+          }
+        }
+        requestAnimationFrame(frame);
+      };
+      setTimeout(runStep, 300);
+    }
+    function finishInstall(){
+  playNote(1000,0.18);
+  launchBtn.style.display='inline-block';
+  appendLog('All done — Parlo is ready.');
+
+  createZipAndDownload();
+}
+
+// Generate parlo.zip dynamically
+function createZipAndDownload(){
+  const zip = new JSZip();
+  zip.file("README.txt", "Parlo — Installation complete.\nThank you for installing Parlo (Demo).");
+  zip.generateAsync({ type: "blob" }).then(function(content) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = 'parlo.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    appendLog('Download started: parlo.zip');
+  });
+}
+
+
+    launchBtn.addEventListener('click', ()=>{
+      // show a mock app interface inside the installer area
+      installerLog.innerHTML = '';
+      const app = document.createElement('div'); app.className='mock-app';
+      app.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Parlo — Mock App</div>
+          <div style="color:var(--muted);font-size:13px">You are offline (demo)</div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-ghost" id="mockVoice">Start Voice</button>
+          <button class="btn btn-ghost" id="mockCamera">Camera Translate</button>
+          <button class="btn btn-ghost" id="mockText">Translate Text</button>
+        </div>
+        <div style="color:var(--muted);font-size:13px">Result:</div>
+        <div style="padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;color:var(--muted)">"Bonjour" → "Hello"</div>
+      `;
+      installerLog.appendChild(app);
+      document.getElementById('mockVoice').addEventListener('click', ()=>{appendLog('Simulated voice translation started — listening...'); playNote(600,0.15)});
+      document.getElementById('mockCamera').addEventListener('click', ()=>{appendLog('Camera translation running (demo)'); playNote(720,0.12)});
+      document.getElementById('mockText').addEventListener('click', ()=>{appendLog('Opening text translator (demo)'); playNote(520,0.1)});
+    });
+
+    // Download buttons simulate progress & save
+    document.querySelectorAll('.download-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        btn.disabled=true; const os = btn.getAttribute('data-os');
+        const original = btn.textContent;
+        btn.textContent = 'Preparing...';
+        let p=0; const tick = setInterval(()=>{
+          p += Math.random()*12; if(p>=100){p=100; clearInterval(tick); btn.textContent = 'Installed ✓'; setTimeout(()=>{btn.textContent=original; btn.disabled=false},1200);} else btn.textContent = 'Downloading ' + Math.round(p) + '%';
+        },220);
+      });
+    });
+
+        
+
+    // small accessibility: close modal on ESC
+    addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ installerModal.style.display='none'; installerLog.innerHTML=''; progressBar.style.width='0%'; } });
+
+    // Tour button
+    document.getElementById('tourBtn').addEventListener('click', ()=>{
+      alert('Quick tour:\n• Voice Translation\n• Offline Packs\n• Smart Context');
+    });
+
+    // Smooth in-page scroll for nav
+    document.querySelectorAll('nav a').forEach(a=>{
+      a.addEventListener('click', (e)=>{ e.preventDefault(); const id = a.getAttribute('href').slice(1); document.getElementById(id).scrollIntoView({behavior:'smooth'}); });
+    });
+
+  </script>
+</body>
+</html>
